@@ -106,7 +106,6 @@ class AmForms_SubmissionsService extends BaseApplicationComponent
         $submission->addErrors($submissionRecord->getErrors());
 
         if (! $submission->hasErrors()) {
-
             // Fire an 'onBeforeSaveSubmission' event
             $event = new Event($this, array(
                 'submission'      => $submission,
@@ -181,23 +180,37 @@ class AmForms_SubmissionsService extends BaseApplicationComponent
      */
     public function deleteSubmission(AmForms_SubmissionModel $submission)
     {
-        $transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
+        // Fire an 'onBeforeDeleteSubmission' event
+        $event = new Event($this, array(
+            'submission' => $submission,
+        ));
+        $this->onBeforeDeleteSubmission($event);
 
-        try {
-            // Delete the element and submission
-            craft()->elements->deleteElementById($submission->id);
+        // Is the event giving us the go-ahead?
+        if ($event->performAction) {
+            $transaction = craft()->db->getCurrentTransaction() === null ? craft()->db->beginTransaction() : null;
 
-            if ($transaction !== null) {
-                $transaction->commit();
+            try {
+                // Delete the element and submission
+                craft()->elements->deleteElementById($submission->id);
+
+                if ($transaction !== null) {
+                    $transaction->commit();
+                }
+
+                // Fire an 'onDeleteSubmission' event
+                $this->onDeleteSubmission(new Event($this, array(
+                    'submission' => $submission,
+                )));
+
+                return true;
+            } catch (\Exception $e) {
+                if ($transaction !== null) {
+                    $transaction->rollback();
+                }
+
+                throw $e;
             }
-
-            return true;
-        } catch (\Exception $e) {
-            if ($transaction !== null) {
-                $transaction->rollback();
-            }
-
-            throw $e;
         }
 
         return false;
@@ -356,8 +369,26 @@ class AmForms_SubmissionsService extends BaseApplicationComponent
                 }
             }
 
-            // Send copy?
-            if ($form->sendCopy) {
+            // Fire an 'onEmailSubmission' event
+            $this->onEmailSubmission(new Event($this, array(
+                'success'    => $success,
+                'email'      => $notificationEmail,
+                'submission' => $submission,
+            )));
+        }
+
+        // Send copy?
+        if ($form->sendCopy) {
+            // Fire an 'onBeforeEmailConfirmSubmission' event
+            $event = new Event($this, array(
+                'email'      => $confirmationEmail,
+                'submission' => $submission,
+            ));
+            $this->onBeforeEmailConfirmSubmission($event);
+
+            // Is the event giving us the go-ahead?
+            if ($event->performAction) {
+                // Send confirmation email
                 $sendCopyTo = $submission->{$form->sendCopyTo};
 
                 if (filter_var($sendCopyTo, FILTER_VALIDATE_EMAIL)) {
@@ -367,14 +398,14 @@ class AmForms_SubmissionsService extends BaseApplicationComponent
                         $success = true;
                     }
                 }
-            }
 
-            // Fire an 'onEmailSubmission' event
-            $this->onEmailSubmission(new Event($this, array(
-                'success'    => $success,
-                'email'      => $notificationEmail,
-                'submission' => $submission,
-            )));
+                // Fire an 'onEmailConfirmSubmission' event
+                $this->onEmailConfirmSubmission(new Event($this, array(
+                    'success'    => $success,
+                    'email'      => $confirmationEmail,
+                    'submission' => $submission,
+                )));
+            }
         }
 
         return $success;
@@ -445,6 +476,26 @@ class AmForms_SubmissionsService extends BaseApplicationComponent
     }
 
     /**
+     * Fires an 'onBeforeDeleteSubmission' event.
+     *
+     * @param Event $event
+     */
+    public function onBeforeDeleteSubmission(Event $event)
+    {
+        $this->raiseEvent('onBeforeDeleteSubmission', $event);
+    }
+
+    /**
+     * Fires an 'onDeleteSubmission' event.
+     *
+     * @param Event $event
+     */
+    public function onDeleteSubmission(Event $event)
+    {
+        $this->raiseEvent('onDeleteSubmission', $event);
+    }
+
+    /**
      * Fires an 'onBeforeEmailSubmission' event.
      *
      * @param Event $event
@@ -462,6 +513,26 @@ class AmForms_SubmissionsService extends BaseApplicationComponent
     public function onEmailSubmission(Event $event)
     {
         $this->raiseEvent('onEmailSubmission', $event);
+    }
+
+    /**
+     * Fires an 'onBeforeEmailConfirmSubmission' event.
+     *
+     * @param Event $event
+     */
+    public function onBeforeEmailConfirmSubmission(Event $event)
+    {
+        $this->raiseEvent('onBeforeEmailConfirmSubmission', $event);
+    }
+
+    /**
+     * Fires an 'onEmailConfirmSubmission' event.
+     *
+     * @param Event $event
+     */
+    public function onEmailConfirmSubmission(Event $event)
+    {
+        $this->raiseEvent('onEmailConfirmSubmission', $event);
     }
 
     /**
