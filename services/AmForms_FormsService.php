@@ -305,7 +305,7 @@ class AmForms_FormsService extends BaseApplicationComponent
                     }
 
                     // Reset templates path for input and get field input
-                    method_exists(craft()->templates, 'setTemplatesPath') ? craft()->templates->setTemplatesPath($pluginTemplatePath) : craft()->path->setTemplatesPath($pluginTemplatePath);
+                    method_exists(craft()->templates, 'setTemplatesPath') ? craft()->templates->setTemplatesPath($templatePath) : craft()->path->setTemplatesPath($templatePath);
                     $fieldInfo = craft()->fields->populateFieldType($field, $submission);
 
                     craft()->templates->getTwig(null, array('safe_mode' => false))->addGlobal('required', $layoutField->required);
@@ -393,7 +393,7 @@ class AmForms_FormsService extends BaseApplicationComponent
                 }
 
                 // Reset templates path for input and get field input
-                method_exists(craft()->templates, 'setTemplatesPath') ? craft()->templates->setTemplatesPath($pluginTemplatePath) : craft()->path->setTemplatesPath($pluginTemplatePath);
+                method_exists(craft()->templates, 'setTemplatesPath') ? craft()->templates->setTemplatesPath($templatePath) : craft()->path->setTemplatesPath($templatePath);
                 $fieldInfo = craft()->fields->populateFieldType($field, $submission);
 
                 craft()->templates->getTwig(null, array('safe_mode' => false))->addGlobal('required', $layoutField->required);
